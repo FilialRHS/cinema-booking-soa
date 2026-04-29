@@ -14,7 +14,7 @@ class CreateBookingsTable extends Migration
             $table->unsignedBigInteger('movie_id');
             $table->string('seat_id');
             $table->string('status')->default('pending');
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
         });
     }
 
