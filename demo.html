@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Cinema Booking Demo</title>
+  </head>
+  <body>
+    <h1>🎬 Cinema Booking Demo</h1>
+
+    <!-- ================= USER ================= -->
+    <h2>1. Create User</h2>
+    <input type="text" id="name" placeholder="Nama" />
+    <input type="email" id="email" placeholder="Email" />
+    <button onclick="createUser()">Create User</button>
+
+    <pre id="userResult"></pre>
+
+    <hr />
+
+    <!-- ================= MOVIES ================= -->
+    <h2>2. List Movies</h2>
+    <button onclick="getMovies()">Load Movies</button>
+
+    <select id="movieSelect"></select>
+
+    <pre id="movieResult"></pre>
+
+    <hr />
+
+    <!-- ================= SEATS ================= -->
+    <h2>3. List Seats</h2>
+    <button onclick="getSeats()">Load Seats</button>
+
+    <select id="seatSelect"></select>
+
+    <pre id="seatResult"></pre>
+
+    <hr />
+
+    <!-- ================= BOOKING ================= -->
+    <h2>4. Booking</h2>
+
+    <input type="number" id="user_id" placeholder="User ID" />
+
+    <button onclick="booking()">Booking</button>
+
+    <pre id="bookingResult"></pre>
+
+    <script>
+      // ================= USER =================
+      function createUser() {
+        fetch("http://localhost:8001/api/users", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: document.getElementById("name").value,
+            email: document.getElementById("email").value,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            document.getElementById("userResult").innerText = JSON.stringify(
+              data,
+              null,
+              2,
+            );
+
+            // auto isi user_id
+            document.getElementById("user_id").value = data.id;
+          });
+      }
+
+      // ================= MOVIES =================
+      function getMovies() {
+        fetch("http://localhost:8002/api/movies")
+          .then((res) => res.json())
+          .then((data) => {
+            document.getElementById("movieResult").innerText = JSON.stringify(
+              data,
+              null,
+              2,
+            );
+
+            let select = document.getElementById("movieSelect");
+            select.innerHTML = "";
+
+            data.forEach((movie) => {
+              let option = document.createElement("option");
+              option.value = movie.id;
+              option.text = movie.title;
+              select.appendChild(option);
+            });
+          });
+      }
+
+      // ================= SEATS =================
+      function getSeats() {
+        fetch("http://localhost:8003/api/seats")
+          .then((res) => res.json())
+          .then((data) => {
+            document.getElementById("seatResult").innerText = JSON.stringify(
+              data,
+              null,
+              2,
+            );
+
+            let select = document.getElementById("seatSelect");
+            select.innerHTML = "";
+
+            data.forEach((seat) => {
+              if (seat.status === "available") {
+                let option = document.createElement("option");
+                option.value = seat.id;
+                option.text = seat.seat_number;
+                select.appendChild(option);
+              }
+            });
+          });
+      }
+
+      // ================= BOOKING =================
+      function booking() {
+        const data = {
+          user_id: document.getElementById("user_id").value,
+          movie_id: document.getElementById("movieSelect").value,
+          seat_id: document.getElementById("seatSelect").value,
+        };
+
+        fetch("http://localhost:8004/api/bookings", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            document.getElementById("bookingResult").innerText = JSON.stringify(
+              data,
+              null,
+              2,
+            );
+          })
+          .catch((err) => {
+            document.getElementById("bookingResult").innerText =
+              "Error: " + err;
+          });
+      }
+    </script>
+  </body>
+</html>

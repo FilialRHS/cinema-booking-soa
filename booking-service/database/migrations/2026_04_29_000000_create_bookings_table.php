@@ -10,13 +10,12 @@ class CreateBookingsTable extends Migration
     {
         if (!Schema::hasTable('bookings')) {
             Schema::create('bookings', function (Blueprint $table) {
-                $table->bigIncrements('id');
+                $table->id();
                 $table->unsignedBigInteger('user_id');
                 $table->unsignedBigInteger('movie_id');
                 $table->string('seat_id');
                 $table->string('status')->default('pending');
-                $table->timestamp('created_at')->useCurrent();
-                $table->timestamp('updated_at')->nullable();
+                $table->timestamps();
             });
         }
     }

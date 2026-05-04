@@ -3,9 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Booking;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Http\Client\ConnectionException;
+use App\Models\Booking;
 
 class BookingController extends Controller
 {
@@ -16,92 +15,64 @@ class BookingController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'user_id' => 'required|integer',
-            'movie_id' => 'required|integer',
-            'seat_id' => 'required|integer',
+        // ✅ VALIDASI
+        $request->validate([
+            'user_id' => 'required',
+            'movie_id' => 'required',
+            'seat_id' => 'required'
         ]);
 
-        // Check UserService (expects plain user object)
-        try {
-            $userRes = Http::get("http://localhost:8001/api/users/{$data['user_id']}");
-        } catch (ConnectionException $e) {
-            return response()->json(['error' => 'User service unavailable'], 503);
-        }
-        if (!$userRes->ok()) {
-            return response()->json(['error' => 'User not found'], 404);
+        // ✅ CEK DOUBLE BOOKING
+        $existing = Booking::where('seat_id', $request->seat_id)
+            ->where('status', 'success')
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'message' => 'Seat sudah dibooking'
+            ], 400);
         }
 
-        // Check MovieService (movie-service exposes GET /api/movies returning {status,data})
-        try {
-            $movieRes = Http::get("http://localhost:8002/api/movies");
-        } catch (ConnectionException $e) {
-            return response()->json(['error' => 'Movie service unavailable'], 503);
-        }
-        if (!$movieRes->ok()) {
-            return response()->json(['error' => 'Movie service error'], 502);
-        }
-        $movieJson = $movieRes->json();
-        $movies = isset($movieJson['data']) ? $movieJson['data'] : $movieJson;
-        $movie = null;
-        foreach ($movies as $m) {
-            if (isset($m['id']) && $m['id'] == $data['movie_id']) {
-                $movie = $m;
-                break;
-            }
-        }
-        if (!$movie) {
-            return response()->json(['error' => 'Movie not found'], 404);
+        // ✅ URL SERVICE
+        $userService = env('USER_SERVICE_URL');
+        $movieService = env('MOVIE_SERVICE_URL');
+        $seatService = env('SEAT_SERVICE_URL');
+
+        // ✅ CEK USER
+        $user = Http::get("$userService/api/users/" . $request->user_id);
+        if ($user->failed()) {
+            return response()->json(['message' => 'User tidak ditemukan'], 404);
         }
 
-        // Check SeatService (seat-service returns seat model; seats are identified by numeric id)
-        try {
-            $seatRes = Http::get("http://localhost:8003/api/seats/{$data['seat_id']}");
-        } catch (ConnectionException $e) {
-            return response()->json(['error' => 'Seat service unavailable'], 503);
-        }
-        if (!$seatRes->ok()) {
-            return response()->json(['error' => 'Seat not found'], 404);
-        }
-        $seat = $seatRes->json();
-        // seat model uses 'status' and 'seat_number'
-        if (isset($seat['status']) && $seat['status'] === 'booked') {
-            return response()->json(['error' => 'Seat already booked'], 422);
+        // ✅ CEK MOVIE
+        $movie = Http::get("$movieService/api/movies/" . $request->movie_id);
+        if ($movie->failed()) {
+            return response()->json(['message' => 'Movie tidak ditemukan'], 404);
         }
 
-        // Create booking
+        // ✅ CEK SEAT
+        $seat = Http::get("$seatService/api/seats/" . $request->seat_id);
+        if ($seat->failed()) {
+            return response()->json(['message' => 'Seat tidak ditemukan'], 404);
+        }
+
+        // ✅ UPDATE STATUS SEAT
+        Http::put("$seatService/api/seats/" . $request->seat_id, [
+            'status' => 'booked'
+        ]);
+
+        // ✅ SIMPAN BOOKING
         $booking = Booking::create([
-            'user_id' => $data['user_id'],
-            'movie_id' => $data['movie_id'],
-            'seat_id' => $data['seat_id'],
-            'status' => 'booked',
-            'created_at' => now(),
+            'user_id' => $request->user_id,
+            'movie_id' => $request->movie_id,
+            'seat_id' => $request->seat_id,
+            'status' => 'success'
         ]);
 
-        // Update seat status to booked
-        try {
-            $updateRes = Http::put("http://localhost:8003/api/seats/{$data['seat_id']}", [
-                'status' => 'booked',
-                'booking_id' => $booking->id,
-            ]);
-        } catch (ConnectionException $e) {
-            $booking->delete();
-            return response()->json(['error' => 'Seat service unavailable'], 503);
-        }
-
-        if (!$updateRes->ok()) {
-            $booking->delete();
-            return response()->json(['error' => 'Failed to update seat status'], 500);
-        }
-
-        return $this->successResponse($booking);
-    }
-
-    private function successResponse($data)
-    {
+        // ✅ RESPONSE
         return response()->json([
-            'message' => 'berhasil',
-            'data' => $data
-        ], 201);
+            'message' => 'Booking berhasil',
+            'data' => $booking
+        ]);
     }
 }
