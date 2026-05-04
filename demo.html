@@ -2,57 +2,90 @@
 <html>
   <head>
     <title>Cinema Booking Demo</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
   </head>
-  <body>
-    <h1>🎬 Cinema Booking Demo</h1>
 
-    <!-- ================= USER ================= -->
-    <h2>1. Create User</h2>
-    <input type="text" id="name" placeholder="Nama" />
-    <input type="email" id="email" placeholder="Email" />
-    <button onclick="createUser()">Create User</button>
+  <body class="bg-light">
+    <div class="container mt-5">
+      <h2 class="text-center mb-4">🎬 Cinema Booking Demo</h2>
 
-    <pre id="userResult"></pre>
+      <!-- ALERT -->
+      <div id="alertBox" class="alert alert-success d-none"></div>
 
-    <hr />
+      <div class="row">
+        <!-- USER -->
+        <div class="col-md-4">
+          <div class="card p-3 shadow">
+            <h5>Create User</h5>
 
-    <!-- ================= MOVIES ================= -->
-    <h2>2. List Movies</h2>
-    <button onclick="getMovies()">Load Movies</button>
+            <input id="name" class="form-control mb-2" placeholder="Name" />
+            <input id="email" class="form-control mb-2" placeholder="Email" />
 
-    <select id="movieSelect"></select>
+            <button class="btn btn-primary w-100" onclick="createUser()">
+              Create
+            </button>
 
-    <pre id="movieResult"></pre>
+            <hr />
 
-    <hr />
+            <label>User ID</label>
+            <input id="user_id" class="form-control" />
+          </div>
+        </div>
 
-    <!-- ================= SEATS ================= -->
-    <h2>3. List Seats</h2>
-    <button onclick="getSeats()">Load Seats</button>
+        <!-- MOVIE -->
+        <div class="col-md-4">
+          <div class="card p-3 shadow">
+            <h5>Movies</h5>
 
-    <select id="seatSelect"></select>
+            <button class="btn btn-success w-100 mb-2" onclick="loadMovies()">
+              Load Movies
+            </button>
 
-    <pre id="seatResult"></pre>
+            <select id="movie_id" class="form-control"></select>
+          </div>
+        </div>
 
-    <hr />
+        <!-- SEAT -->
+        <div class="col-md-4">
+          <div class="card p-3 shadow text-center">
+            <h5>Seats</h5>
 
-    <!-- ================= BOOKING ================= -->
-    <h2>4. Booking</h2>
+            <button class="btn btn-warning w-100 mb-2" onclick="loadSeats()">
+              Load Seats
+            </button>
 
-    <input type="number" id="user_id" placeholder="User ID" />
+            <div class="bg-secondary text-white mb-2 p-1">SCREEN</div>
 
-    <button onclick="booking()">Booking</button>
+            <div id="seats"></div>
 
-    <pre id="bookingResult"></pre>
+            <p class="mt-2">Selected Seat: <b id="selectedSeat">-</b></p>
+
+            <button class="btn btn-dark w-100" onclick="booking()">BOOK</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script>
-      // ================= USER =================
+      let selectedSeat = null;
+
+      function showAlert(msg) {
+        const box = document.getElementById("alertBox");
+        box.innerText = msg;
+        box.classList.remove("d-none");
+
+        setTimeout(() => {
+          box.classList.add("d-none");
+        }, 2000);
+      }
+
       function createUser() {
         fetch("http://localhost:8001/api/users", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: document.getElementById("name").value,
             email: document.getElementById("email").value,
@@ -60,91 +93,74 @@
         })
           .then((res) => res.json())
           .then((data) => {
-            document.getElementById("userResult").innerText = JSON.stringify(
-              data,
-              null,
-              2,
-            );
-
-            // auto isi user_id
             document.getElementById("user_id").value = data.id;
+            showAlert("User berhasil dibuat!");
           });
       }
 
-      // ================= MOVIES =================
-      function getMovies() {
+      function loadMovies() {
         fetch("http://localhost:8002/api/movies")
           .then((res) => res.json())
           .then((data) => {
-            document.getElementById("movieResult").innerText = JSON.stringify(
-              data,
-              null,
-              2,
-            );
-
-            let select = document.getElementById("movieSelect");
+            const select = document.getElementById("movie_id");
             select.innerHTML = "";
 
-            data.forEach((movie) => {
+            data.forEach((m) => {
               let option = document.createElement("option");
-              option.value = movie.id;
-              option.text = movie.title;
+              option.value = m.id;
+              option.text = m.title + " - Rp" + m.price;
               select.appendChild(option);
             });
           });
       }
 
-      // ================= SEATS =================
-      function getSeats() {
-        fetch("http://localhost:8003/api/seats")
+      function loadSeats() {
+        const movieId = document.getElementById("movie_id").value;
+
+        fetch(`http://localhost:8003/api/seats?movie_id=${movieId}`)
           .then((res) => res.json())
           .then((data) => {
-            document.getElementById("seatResult").innerText = JSON.stringify(
-              data,
-              null,
-              2,
-            );
-
-            let select = document.getElementById("seatSelect");
-            select.innerHTML = "";
+            const container = document.getElementById("seats");
+            container.innerHTML = "";
 
             data.forEach((seat) => {
-              if (seat.status === "available") {
-                let option = document.createElement("option");
-                option.value = seat.id;
-                option.text = seat.seat_number;
-                select.appendChild(option);
+              let btn = document.createElement("button");
+
+              btn.innerText = seat.seat_number;
+
+              btn.className =
+                "btn m-1 " +
+                (seat.status === "available" ? "btn-success" : "btn-danger");
+
+              if (seat.status !== "available") {
+                btn.disabled = true;
               }
+
+              btn.onclick = () => {
+                selectedSeat = seat.id;
+                document.getElementById("selectedSeat").innerText =
+                  seat.seat_number;
+              };
+
+              container.appendChild(btn);
             });
           });
       }
 
-      // ================= BOOKING =================
       function booking() {
-        const data = {
-          user_id: document.getElementById("user_id").value,
-          movie_id: document.getElementById("movieSelect").value,
-          seat_id: document.getElementById("seatSelect").value,
-        };
-
         fetch("http://localhost:8004/api/bookings", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: document.getElementById("user_id").value,
+            movie_id: document.getElementById("movie_id").value,
+            seat_id: selectedSeat,
+          }),
         })
           .then((res) => res.json())
           .then((data) => {
-            document.getElementById("bookingResult").innerText = JSON.stringify(
-              data,
-              null,
-              2,
-            );
-          })
-          .catch((err) => {
-            document.getElementById("bookingResult").innerText =
-              "Error: " + err;
+            showAlert("Booking berhasil!");
+            loadSeats(); // refresh seat
           });
       }
     </script>

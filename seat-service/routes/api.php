@@ -7,3 +7,4 @@ Route::get('/seats', [SeatController::class, 'index']);
 Route::get('/seats/{id}', [SeatController::class, 'show']);
 Route::put('/seats/{id}', [SeatController::class, 'update']);
 Route::post('/seats', [SeatController::class, 'store']);
+Route::put('/seats/{id}', [SeatController::class, 'update']);

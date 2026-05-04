@@ -7,9 +7,11 @@ use Illuminate\Http\Request;
 
 class SeatController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return Seat::all();
+        $movieId = $request->movie_id;
+
+        return Seat::where('movie_id', $movieId)->get();
     }
 
     public function show($id)
@@ -19,11 +21,16 @@ class SeatController extends Controller
 
     public function update(Request $request, $id)
     {
-        $seat = Seat::findOrFail($id);
-        $seat->status = $request->status;
+        $seat = Seat::find($id);
+
+        if (!$seat) {
+            return response()->json(['message' => 'Seat not found'], 404);
+        }
+
+        $seat->status = $request->status ?? 'booked';
         $seat->save();
 
-        return $seat;
+        return response()->json($seat);
     }
 
     public function store(Request $request)
